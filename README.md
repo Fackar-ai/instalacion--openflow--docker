@@ -1,48 +1,80 @@
-# instalacion--openflow--docker
+# OpenCore / OpenFlow en Dokploy
 
-Descripción
+## Descripción
+
 Esta instalación permite desplegar OpenCore/OpenFlow utilizando MongoDB y RabbitMQ sobre Dokploy.
 
 La arquitectura utilizada es:
 
 OpenFlow → RabbitMQ → MongoDB ReplicaSet
 
-MongoDB debe funcionar obligatoriamente como ReplicaSet (rs0), incluso si solo existe un nodo.
+MongoDB debe funcionar obligatoriamente como ReplicaSet (`rs0`), incluso si solo existe un nodo.
 
-Requisitos Previos
-Servidor
+---
+
+# Requisitos Previos
+
+## Servidor
+
 Se recomienda:
 
-4 vCPU mínimo
-8 GB RAM mínimo
-Ubuntu 22.04 o superior
-Docker instalado
-Dokploy instalado y funcionando
-Dominio
+- 4 vCPU mínimo
+- 8 GB RAM mínimo
+- Ubuntu 22.04 o superior
+- Docker instalado
+- Dokploy instalado y funcionando
+
+---
+
+## Dominio
+
 Antes de desplegar:
 
-Crear un subdominio.
+1. Crear un subdominio.
+
 Ejemplo:
 
+```text
 opencore.midominio.com
-Crear el registro DNS apuntando a la IP pública del servidor.
+```
+
+2. Crear el registro DNS apuntando a la IP pública del servidor.
+
 Ejemplo:
 
+```text
 Tipo: A
 Nombre: opencore
 Valor: IP_DEL_SERVIDOR
-Esperar propagación DNS.
-Configuración en Dokploy
-Tipo de aplicación
+```
+
+3. Esperar propagación DNS.
+
+---
+
+# Configuración en Dokploy
+
+## Tipo de aplicación
+
 Crear una aplicación tipo:
 
+```text
 Compose
+```
+
 o
 
+```text
 Docker Raw Compose
-Dominio
+```
+
+---
+
+## Dominio
+
 Una vez desplegado el stack:
 
+```text
 Host:
 opencore.midominio.com
 
@@ -54,118 +86,223 @@ Container Port:
 
 HTTPS:
 Enabled
+```
+
 Importante:
 
 El puerto del dominio siempre debe apuntar al puerto interno del contenedor:
 
+```text
 3000
+```
+
 aunque externamente OpenFlow esté publicado en otro puerto.
 
-Variables importantes
-domain
+---
+
+# Variables importantes
+
+## domain
+
 Debe contener exactamente el mismo dominio configurado en Dokploy.
 
 Ejemplo:
 
+```text
 domain=opencore.midominio.com
-aes_secret
+```
+
+---
+
+## aes_secret
+
 Clave utilizada internamente por OpenFlow.
 
 Ejemplo:
 
+```text
 aes_secret=MiClaveSuperSeguraDe32CaracteresOMas
+```
+
 Importante:
 
 No cambiar esta clave después de tener usuarios creados.
 
-MongoDB
+---
+
+## MongoDB
+
 La conexión debe utilizar ReplicaSet.
 
 Ejemplo:
 
+```text
 mongodb://mongodb:27017/?replicaSet=rs0
-RabbitMQ
+```
+
+---
+
+## RabbitMQ
+
 Ejemplo:
 
+```text
 amqp://admin:admin123@rabbitmq:5672/myvhost
-Verificaciones después del despliegue
-MongoDB
+```
+
+---
+
+# Verificaciones después del despliegue
+
+## MongoDB
+
 Ingresar al contenedor:
 
+```bash
 docker exec -it <contenedor_mongodb> mongosh
+```
+
 Ejecutar:
 
+```javascript
 rs.status()
+```
+
 Resultado esperado:
 
+```text
 PRIMARY
+```
+
 Si aparece:
 
+```text
 NoReplicationEnabled
+```
+
 MongoDB no quedó configurado correctamente.
 
-OpenFlow
+---
+
+## OpenFlow
+
 Revisar logs:
 
+```bash
 docker logs <contenedor_openflow>
+```
+
 Debe aparecer algo similar a:
 
+```text
 Connected to mongodb
 Connected to rabbitmq
 VERSION:
+```
+
 Si ambos mensajes aparecen, la infraestructura está funcionando.
 
-Problemas encontrados durante la instalación
-Error MongoDB
+---
+
+# Problemas encontrados durante la instalación
+
+## Error MongoDB
+
+```text
 NoReplicationEnabled
-Causa
+```
+
+### Causa
+
 MongoDB iniciado sin ReplicaSet.
 
-Solución
+### Solución
+
 Agregar:
 
+```text
 --replSet rs0
+```
+
 al servicio MongoDB.
 
-Error MongoDB + Auth
+---
+
+## Error MongoDB + Auth
+
+```text
 security.keyFile is required when authorization is enabled with replica sets
-Causa
+```
+
+### Causa
+
 Se habilitó autenticación antes de terminar la configuración del ReplicaSet.
 
-Solución
+### Solución
+
 Configurar ReplicaSet primero y posteriormente agregar autenticación.
 
-Error Dokploy
+---
+
+## Error Dokploy
+
+```text
 Domain is attached to service which does not exist
-Causa
+```
+
+### Causa
+
 El dominio apuntaba a un nombre de servicio inexistente.
 
-Solución
-Verificar que el dominio apunte exactamente al servicio openflow.
+### Solución
 
-Error Docker
+Verificar que el dominio apunte exactamente al servicio `openflow`.
+
+---
+
+## Error Docker
+
+```text
 Bind for 0.0.0.0:3000 failed: port is already allocated
-Causa
+```
+
+### Causa
+
 Dokploy utiliza el puerto 3000.
 
-Solución
+### Solución
+
 Publicar OpenFlow en otro puerto del host.
 
 Ejemplo:
 
+```text
 3001:3000
-Error OpenFlow
+```
+
+---
+
+## Error OpenFlow
+
+```text
 Cannot read properties of null (reading 'map')
-Causa
+```
+
+### Causa
+
 Base de datos OpenFlow creada parcialmente durante pruebas anteriores.
 
-Solución
-Eliminar la base de datos openflow y desplegar nuevamente.
+### Solución
 
-Notas
-MongoDB debe ejecutarse como ReplicaSet.
-RabbitMQ debe estar disponible antes de iniciar OpenFlow.
-No cambiar aes_secret una vez existan usuarios.
-El volumen /var/run/docker.sock permite a OpenFlow administrar contenedores Docker.
-Dokploy ya incluye Traefik, por lo que no es necesario desplegar Traefik dentro del stack.
-Si el puerto 3000 está ocupado, utilizar otro puerto para acceso directo por IP.
+Eliminar la base de datos `openflow` y desplegar nuevamente.
+
+---
+
+# Notas
+
+- MongoDB debe ejecutarse como ReplicaSet.
+- RabbitMQ debe estar disponible antes de iniciar OpenFlow.
+- No cambiar `aes_secret` una vez existan usuarios.
+- El volumen `/var/run/docker.sock` permite a OpenFlow administrar contenedores Docker.
+- Dokploy ya incluye Traefik, por lo que no es necesario desplegar Traefik dentro del stack.
+- Si el puerto 3000 está ocupado, utilizar otro puerto para acceso directo por IP.
