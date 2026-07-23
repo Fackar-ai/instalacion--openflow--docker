@@ -598,4 +598,501 @@ Esperar que todos los contenedores inicien correctamente.
 
 ---
 
-**(Continúa en la Parte 2 con el `docker-compose`, configuración de HTTPS, Traefik, dominios, validaciones y troubleshooting.)**
+# Despliegue de OpenFlow en Dokploy
+
+Una vez que el archivo `docker-compose-dokploy.yml` ha sido configurado, es momento de desplegar la aplicación utilizando Dokploy.
+
+---
+
+# Crear el Servicio
+
+Desde el Dashboard de Dokploy.
+
+Seleccionar:
+
+```
+Projects
+```
+
+Abrir el proyecto.
+
+```
+OpenFlow
+```
+
+Seleccionar.
+
+```
+Create Service
+```
+
+Elegir.
+
+```
+Docker Compose
+```
+
+Nombre sugerido.
+
+```
+openflow
+```
+
+Guardar.
+
+---
+
+# Copiar el Docker Compose
+
+Abrir el archivo.
+
+```bash
+cat docker-compose-dokploy.yml
+```
+
+Copiar todo su contenido.
+
+Regresar a Dokploy.
+
+Pegar el contenido dentro del editor.
+
+Guardar.
+
+---
+
+# Desplegar
+
+Presionar.
+
+```
+Deploy
+```
+
+Dokploy descargará automáticamente las imágenes necesarias.
+
+Durante el primer despliegue descargará aproximadamente:
+
+- MongoDB
+- RabbitMQ
+- OpenFlow
+
+Este proceso puede tardar varios minutos dependiendo de la velocidad de Internet del servidor.
+
+---
+
+# Verificar los Contenedores
+
+Ingresar al servidor.
+
+```bash
+docker ps
+```
+
+Debe observar algo similar.
+
+```
+mongodb
+
+rabbitmq
+
+openflow
+
+mongosetup
+```
+
+El contenedor:
+
+```
+mongosetup
+```
+
+normalmente finalizará con estado.
+
+```
+Exited (0)
+```
+
+Esto **NO ES UN ERROR**.
+
+Su única función es inicializar el ReplicaSet de MongoDB.
+
+---
+
+# Verificar los Logs
+
+Desde Dokploy.
+
+Seleccionar.
+
+```
+Logs
+```
+
+o desde la consola.
+
+```bash
+docker logs NOMBRE_DEL_CONTENEDOR
+```
+
+Ejemplo.
+
+```bash
+docker logs openflow-openflow-xxxxxxxx-openflow-1
+```
+
+Los siguientes mensajes indican que la aplicación inició correctamente.
+
+```
+Connected to mongodb
+
+Connected to rabbitmq
+
+VERSION
+
+Listening
+
+grpc server listening
+```
+
+---
+
+# Configuración del Dominio
+
+Una vez desplegado el servicio.
+
+Ingresar a.
+
+```
+Domains
+```
+
+Seleccionar.
+
+```
+Add Domain
+```
+
+Configurar.
+
+| Campo | Valor |
+|---------|---------|
+| Host | opencore.midominio.com |
+| Path | / |
+| Internal Path | / |
+| Container Port | 3000 |
+| HTTPS | Activado |
+| Strip Path | Desactivado |
+
+Guardar.
+
+---
+
+# Certificado SSL
+
+Si Dokploy ya tiene configurado Let's Encrypt.
+
+Simplemente seleccionar.
+
+```
+Let's Encrypt
+```
+
+Guardar.
+
+Si la lista aparece vacía.
+
+Primero deberá configurar un proveedor de certificados en la configuración general de Dokploy.
+
+Posteriormente volver al servicio.
+
+Agregar nuevamente el dominio.
+
+---
+
+# Redireccionamiento HTTPS
+
+Una vez generado el certificado.
+
+Abrir.
+
+```
+https://opencore.midominio.com
+```
+
+No deberá aparecer ninguna advertencia del navegador.
+
+El certificado deberá ser válido.
+
+---
+
+# Verificar el Certificado
+
+Puede verificarlo desde.
+
+https://www.ssllabs.com/ssltest/
+
+Introduzca su dominio.
+
+```
+opencore.midominio.com
+```
+
+El resultado esperado deberá ser.
+
+```
+A
+
+o
+
+A+
+```
+
+---
+
+# Validar OpenFlow
+
+Abrir.
+
+```
+https://opencore.midominio.com
+```
+
+La página principal deberá cargar correctamente.
+
+También es posible acceder directamente a la interfaz.
+
+```
+https://opencore.midominio.com/ui/
+```
+
+En versiones anteriores también puede funcionar.
+
+```
+https://opencore.midominio.com:3001/ui/
+```
+
+Sin embargo, en producción se recomienda utilizar únicamente HTTPS mediante Traefik.
+
+---
+
+# Verificar MongoDB ReplicaSet
+
+Ingresar al contenedor.
+
+```bash
+docker exec -it openflow-openflow-xxxxxxxx-mongodb-1 mongosh
+```
+
+Ejecutar.
+
+```javascript
+rs.status()
+```
+
+Debe aparecer.
+
+```
+PRIMARY
+```
+
+Salir.
+
+```javascript
+exit
+```
+
+---
+
+# Verificar RabbitMQ
+
+Ingresar al navegador.
+
+```
+http://IP_SERVIDOR:15672
+```
+
+o si el puerto no está publicado.
+
+```bash
+docker exec -it openflow-openflow-xxxxxxxx-rabbitmq-1 bash
+```
+
+La consola de RabbitMQ deberá estar operativa.
+
+---
+
+# Comandos Útiles
+
+Mostrar todos los contenedores.
+
+```bash
+docker ps
+```
+
+Mostrar también los detenidos.
+
+```bash
+docker ps -a
+```
+
+Ver imágenes.
+
+```bash
+docker images
+```
+
+Ver redes.
+
+```bash
+docker network ls
+```
+
+Ver volúmenes.
+
+```bash
+docker volume ls
+```
+
+Ver espacio utilizado.
+
+```bash
+docker system df
+```
+
+---
+
+# Reiniciar OpenFlow
+
+```bash
+docker restart NOMBRE_CONTENEDOR
+```
+
+---
+
+# Reiniciar MongoDB
+
+```bash
+docker restart mongodb
+```
+
+---
+
+# Reiniciar RabbitMQ
+
+```bash
+docker restart rabbitmq
+```
+
+---
+
+# Reiniciar todos los servicios
+
+```bash
+docker compose restart
+```
+
+---
+
+# Detener la Aplicación
+
+```bash
+docker compose down
+```
+
+---
+
+# Iniciar nuevamente
+
+```bash
+docker compose up -d
+```
+
+---
+
+# Actualizar las Imágenes
+
+Descargar las versiones más recientes.
+
+```bash
+docker compose pull
+```
+
+Aplicar la actualización.
+
+```bash
+docker compose up -d
+```
+
+---
+
+# Validaciones Finales
+
+Antes de entregar el servidor en producción valide los siguientes puntos.
+
+| Verificación | Estado Esperado |
+|--------------|-----------------|
+| Docker funcionando | ✅ |
+| Dokploy funcionando | ✅ |
+| MongoDB iniciado | ✅ |
+| ReplicaSet PRIMARY | ✅ |
+| RabbitMQ iniciado | ✅ |
+| OpenFlow iniciado | ✅ |
+| HTTPS funcionando | ✅ |
+| Dominio resolviendo correctamente | ✅ |
+| SSL válido | ✅ |
+| Acceso a la interfaz | ✅ |
+
+---
+
+# Diagrama Final
+
+```
+                        Internet
+                            │
+                            │
+                     HTTPS (443)
+                            │
+                     +---------------+
+                     |    Traefik    |
+                     |   Dokploy     |
+                     +-------+-------+
+                             │
+                             │
+                     OpenFlow :3000
+                             │
+          +------------------+------------------+
+          │                                     │
+          ▼                                     ▼
+     RabbitMQ                            MongoDB 7
+                                            │
+                                            ▼
+                                      ReplicaSet rs0
+```
+
+---
+
+# Buenas Prácticas
+
+- Utilizar siempre HTTPS.
+- Mantener Docker actualizado.
+- Cambiar las contraseñas por defecto.
+- Generar un `aes_secret` único para cada instalación.
+- No modificar el `aes_secret` una vez que el sistema esté en producción.
+- Realizar copias de seguridad periódicas de MongoDB.
+- Monitorear el consumo de CPU, memoria y disco.
+- Mantener actualizado OpenFlow y sus dependencias.
+
+---
+
+# Próximos Pasos
+
+Una vez completada la instalación se recomienda:
+
+1. Crear el primer usuario administrador.
+2. Configurar la autenticación.
+3. Crear organizaciones y usuarios.
+4. Configurar flujos de trabajo.
+5. Integrar servicios externos.
+6. Implementar una estrategia de respaldos.
+7. Configurar monitoreo y alertas.
+8. Documentar los cambios realizados en el entorno.
